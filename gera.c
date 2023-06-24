@@ -1,4 +1,4 @@
-/* DavidWolff 1920468 Turma 3WB */
+/* David Wolff 1920468 Turma 3WB */
 /* João Pedro Nascimento 2210028 Turma 3WB */
 
 #include <stdio.h>
@@ -22,52 +22,64 @@ void registraVarLocal(int n, int linha) {
 }
 
 void opera(char op, char var1, char var2, int idx0, int idx1, int idx2, int linha) {
+    // operação entre duas constantes
     if (var1 == '$' && var2 == '$') {
         codigo[i++] = 0xb8;
         *((int*)&codigo[i]) = idx1; i += 4;
+        // soma
         if (op == '+') {
             codigo[i++] = 0x05;
             *((int*)&codigo[i]) = idx2; i += 4;
         }
+        // subtração
         else if (op == '-') {
             codigo[i++] = 0x83;
             codigo[i++] = 0xe8;
             *((int*)&codigo[i]) = idx2; i += 4;
             i++;
         }
-        else { // op == '*'
+        // multiplicação
+        else {
             codigo[i++] = 0x6b;
             codigo[i++] = 0xc0;
             *((int*)&codigo[i]) = idx2; i += 1;
         }
     }
+    // operação entre variável e constante
     else if (var1 == 'v' && var2 == '$') {   
         codigo[i++] = 0x8b;
         codigo[i++] = 0x45;
         registraVarLocal(idx1, linha);
+        // soma
         if (op == '+') {
             codigo[i++] = 0x83;
             codigo[i++] = 0xc0;
         }
+        // subtração
         else if (op == '-') {
             codigo[i++] = 0x83;
             codigo[i++] = 0xe8;
         }
+        // multiplicação
         else {
             codigo[i++] = 0x6b;
             codigo[i++] = 0xc0;
         }
         *((int*)&codigo[i]) = idx2; i += 1;
     }
+    // operação entre constante e variável
     else if (var1 == '$' && var2 == 'v') {
         codigo[i++] = 0xb8;
         *((int*)&codigo[i]) = idx1; i += 4;
+        // soma
         if (op == '+') {
             codigo[i++] = 0x03;
         }
+        // subtração
         else if (op == '-') {
             codigo[i++] = 0x2b;
         }
+        // multiplicação
         else {
             codigo[i++] = 0x0f;
             codigo[i++] = 0xaf;
@@ -75,16 +87,20 @@ void opera(char op, char var1, char var2, int idx0, int idx1, int idx2, int linh
         codigo[i++] = 0x45;
         registraVarLocal(idx2, linha);
     }
+    // operação entre duas variáveis
     else if (var1 == 'v' && var2 == 'v') {
         codigo[i++] = 0x8b;
         codigo[i++] = 0x45;
         registraVarLocal(idx1, linha);
+        // soma
         if (op == '+') {
             codigo[i++] = 0x03;
         }
+        // subtração
         else if (op == '-') {
             codigo[i++] = 0x2b;
         }
+        // multiplicação
         else {
             codigo[i++] = 0x0f;
             codigo[i++] = 0xaf;
@@ -106,6 +122,7 @@ funcp gera(FILE* f, unsigned char codigo[]) {
     Pulo pulos[MAX_LINHAS];
     i = 0;
 
+    // criação da pilha
     codigo[i++] = 0x55; codigo[i++] = 0x48; codigo[i++] = 0x89; codigo[i++] = 0xe5;
     codigo[i++] = 0x48; codigo[i++] = 0x83; codigo[i++] = 0xec; codigo[i++] = 0x20;
 
@@ -113,16 +130,19 @@ funcp gera(FILE* f, unsigned char codigo[]) {
 
         endereco[linha - 1] = (long)(&codigo[i]);
         switch (c) {
+            // linha de retorno
             case 'r': {
                 char var0;
                 int idx0;
                 fscanf(f, "et %c%d", &var0, &idx0);
                 switch (var0) {
+                    // constante
                     case '$': {
                         codigo[i++] = 0xb8;
                         *((int*)&codigo[i]) = idx0; i += 4;
                         break;
                     }
+                    // variável
                     case 'v': {
                         codigo[i++] = 0x8b;
                         codigo[i++] = 0x45;
@@ -135,14 +155,17 @@ funcp gera(FILE* f, unsigned char codigo[]) {
                 printf("%d ret %c%d\n", linha, var0, idx0);
                 break;
             }
+            // linha de atribuição/operação
             case 'v': {
                 char var0 = c, c0, var1;
                 int idx0, idx1;
                 fscanf(f, "%d %c", &idx0, &c0);
                 switch (c0) {
+                    // atribuição
                     case '<': {
                         fscanf(f, " %c%d", &var1, &idx1);
                         switch (var1) {
+                            // constante
                             case '$': {
                                 codigo[i++] = 0xc7;
                                 codigo[i++] = 0x45;
@@ -150,6 +173,7 @@ funcp gera(FILE* f, unsigned char codigo[]) {
                                 *((int*)&codigo[i]) = idx1; i += 4;
                                 break;
                             }
+                            // variável
                             case 'v': {
                                 codigo[i++] = 0x44;
                                 codigo[i++] = 0x8b;
@@ -161,6 +185,7 @@ funcp gera(FILE* f, unsigned char codigo[]) {
                                 registraVarLocal(idx0, linha);
                                 break;
                             }
+                            // parâmetro
                             case 'p': {
                                 codigo[i++] = 0x89;
                                 switch (idx1) {
@@ -181,6 +206,7 @@ funcp gera(FILE* f, unsigned char codigo[]) {
                         printf("%d %c%d < %c%d\n", linha, var0, idx0, var1, idx1);
                         break;
                     }
+                    // atribuição com operação
                     case '=': {
                         char var2, op;
                         int idx2;
@@ -194,6 +220,7 @@ funcp gera(FILE* f, unsigned char codigo[]) {
                 }
                 break;
             }
+            // linha de desvio
             case 'i': {
                 char var0;
                 int idx0, n;
@@ -223,6 +250,5 @@ funcp gera(FILE* f, unsigned char codigo[]) {
     }
 
     cod = (funcp)codigo;
-    
     return cod;
 }
